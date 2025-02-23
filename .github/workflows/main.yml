@@ -20,6 +20,29 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
+            // First, let's list all available projects
+              const projectsQuery = `
+                query($owner: String!) {
+                  user(login: $owner) {
+                    projectsV2(first: 20) {
+                      nodes {
+                        id
+                        number
+                        title
+                      }
+                    }
+                  }
+                }
+              `;
+
+              const projectsVariables = {
+                owner: context.repo.owner
+              };
+
+              // Log available projects
+              const projectsResult = await github.graphql(projectsQuery, projectsVariables);
+              console.log('Available projects:', JSON.stringify(projectsResult, null, 2));
+              
             // Using Projects API v2
             const projectId = 4; // Replace with your project ID
             const query = `
