@@ -19,13 +19,12 @@ jobs:
       - name: Add Unique ID to Project Field
         uses: actions/github-script@v6
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             // First, let's list all available projects
               const projectsQuery = `
                 query($owner: String!) {
                   user(login: $owner) {
-                    projectsV2(first: 20) {
+                    projectV2(first: 20) {
                       nodes {
                         id
                         number
