@@ -20,21 +20,58 @@ jobs:
         uses: actions/github-script@v6
         with:
           script: |
-            const { data: project } = await github.rest.projects.get({
-              owner: context.repo.owner,
-              project_id: 4,  # Replace with your project ID
-            });
+            // Using Projects API v2
+            const projectId = 4; // Replace with your project ID
+            const query = `
+              query($owner: String!, $number: Int!) {
+                organization(login: $owner) {
+                  projectV2(number: $number) {
+                    id
+                    fields(first: 20) {
+                      nodes {
+                        ... on ProjectV2Field {
+                          id
+                          name
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            `;
 
-            const field = project.fields.find(f => f.name === 'Unique ID');  # Replace with your custom field name
+            const variables = {
+              owner: context.repo.owner,
+              number: projectId
+            };
+
+            const result = await github.graphql(query, variables);
+            const field = result.organization.projectV2.fields.nodes.find(f => f.name === 'Unique ID');
+
             if (!field) {
               console.error('Custom field "Unique ID" not found.');
               return;
             }
 
-            await github.rest.projects.updateItem({
-              owner: context.repo.owner,
-              project_id: 4,  # Replace with your project ID
-              item_id: context.payload.issue.node_id,
-              field_id: field.id,
-              value: '${{ steps.generate_id.outputs.unique_id }}',
+            // Update the item with the unique ID
+            await github.graphql(`
+              mutation($projectId: ID!, $itemId: ID!, $fieldId: ID!, $value: String!) {
+                updateProjectV2ItemFieldValue(
+                  input: {
+                    projectId: $projectId
+                    itemId: $itemId
+                    fieldId: $fieldId
+                    value: $value
+                  }
+                ) {
+                  projectV2Item {
+                    id
+                  }
+                }
+              }
+            `, {
+              projectId: result.organization.projectV2.id,
+              itemId: context.payload.issue.node_id,
+              fieldId: field.id,
+              value: '${{ steps.generate_id.outputs.unique_id }}'
             });
