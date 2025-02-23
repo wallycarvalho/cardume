@@ -1,0 +1,40 @@
+name: Generate Unique ID for Issues
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  generate-unique-id:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Unique ID
+        id: generate_id
+        run: |
+          # Generate a UUID (or use any other method to create a unique ID)
+          UNIQUE_ID=$(uuidgen)
+          echo "Unique ID: $UNIQUE_ID"
+          echo "unique_id=$UNIQUE_ID" >> $GITHUB_OUTPUT
+
+      - name: Add Unique ID to Project Field
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data: project } = await github.rest.projects.get({
+              owner: context.repo.owner,
+              project_id: 4,  # Replace with your project ID
+            });
+
+            const field = project.fields.find(f => f.name === 'Unique ID');  # Replace with your custom field name
+            if (!field) {
+              console.error('Custom field "Unique ID" not found.');
+              return;
+            }
+
+            await github.rest.projects.updateItem({
+              owner: context.repo.owner,
+              project_id: 4,  # Replace with your project ID
+              item_id: context.payload.issue.node_id,
+              field_id: field.id,
+              value: '${{ steps.generate_id.outputs.unique_id }}',
+            });
